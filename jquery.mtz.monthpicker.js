@@ -65,17 +65,27 @@
                         selectedMonth: null,
                         selectedMonthName: '',
                         selectedYear: year,
-                        startYear: year - 10,
-                        finalYear: year + 10,
+                        startYear: year - 5,
+                        finalYear: year + 2,
                         monthNames: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
                         id: "monthpicker_" + (Math.random() * Math.random()).toString().replace('.', ''),
                         openOnFocus: true,
-                        disabledMonths: []
+                        disabledMonths: [],
+						minMonths: -6
                     }, options);
 
                 settings.dateSeparator = settings.pattern.replace(/(mmm|mm|m|yyyy|yy|y)/ig,'');
-
+				
+                if(settings.minMonths !== null) {
+                        var currentYear = new Date().getFullYear();
+                        var currentMonth = new Date().getMonth();
+                        settings.minMonthsYear = Math.floor((currentYear*12 + currentMonth + settings.minMonths)/12);
+                        settings.minMonthsMonth = (currentYear*12 + currentMonth + settings.minMonths)%12;
+                        settings.startYear = settings.minMonthsYear;
+                }
+				
                 // If the plugin hasn't been initialized yet for this element
+				var conteiner;
                 if (!data) {
 
                     $(this).data('monthpicker', {
@@ -91,7 +101,7 @@
 
                     $this.monthpicker('parseInputValue', settings);
 
-                    $this.monthpicker('mountWidget', settings);
+                    conteiner = $this.monthpicker('mountWidget', settings);
 
                     $this.on('monthpicker-click-month', function (e, month, year) {
                         $this.monthpicker('setValue', settings);
@@ -106,6 +116,7 @@
                         }
                     });
                 }
+				applyMinRange(settings, conteiner.find('td[data-month]'), settings.selectedYear);
             });
         },
 
@@ -185,8 +196,8 @@
                 monthpicker = this,
                 container = $('<div id="'+ settings.id +'" class="ui-datepicker ui-widget ui-widget-content ui-helper-clearfix ui-corner-all" />'),
                 header = $('<div class="ui-datepicker-header ui-widget-header ui-helper-clearfix ui-corner-all mtz-monthpicker" />'),
-                combo = $('<select class="mtz-monthpicker mtz-monthpicker-year" />'),
-                table = $('<table class="mtz-monthpicker" />'),
+                combo = $('<select class="mtz-monthpicker mtz-monthpicker-year" style="height:30px"/>'),
+                table = $('<table class="mtz-monthpicker" style="border-collapse:separate"/>'),
                 tbody = $('<tbody class="mtz-monthpicker" />'),
                 tr = $('<tr class="mtz-monthpicker" />'),
                 td = '',
@@ -226,7 +237,12 @@
                 if ($(this).val() == settings.selectedYear) {
                     months.filter('td[data-month='+ settings.selectedMonth +']').addClass('ui-state-active');
                 }
-                monthpicker.trigger('monthpicker-change-year', $(this).val());
+				
+				//applying minMonths
+				applyMinRange(settings, months, parseInt($(this).val()));
+				
+				monthpicker.trigger('monthpicker-change-year', $(this).val());
+				
             });
 
             // mount years combo
@@ -241,7 +257,7 @@
 
             // mount months table
             for (var i=1; i<=12; i++) {
-                td = $('<td class="ui-state-default mtz-monthpicker mtz-monthpicker-month" style="padding:5px;cursor:default;" />').attr('data-month',i);
+                td = $('<td class="ui-state-default mtz-monthpicker mtz-monthpicker-month" style="padding:5px;cursor:default" />').attr('data-month',i);
                 if (settings.selectedMonth == i) {
                    td.addClass('ui-state-active');
                 }
@@ -253,8 +269,7 @@
             }
 
             tbody.find('.mtz-monthpicker-month').on('click', function () {
-                var m = parseInt($(this).data('month'));
-                if ($.inArray(m, settings.disabledMonths) < 0 ) {
+				if(!$(this).hasClass('ui-state-disabled')) {
                     settings.selectedYear = $(this).closest('.ui-datepicker').find('.mtz-monthpicker-year').first().val();
                     settings.selectedMonth = $(this).data('month');
                     settings.selectedMonthName = $(this).text();
@@ -267,6 +282,8 @@
             table.append(tbody).appendTo(container);
 
             container.appendTo('body');
+			
+			return container;
         },
 
         destroy: function () {
@@ -300,6 +317,20 @@
         }
 
     };
+	
+	function applyMinRange(settings, months, comboYear) {
+		if(settings.minMonths === null) return;
+		
+		months.addClass('ui-state-disabled');
+	
+		if(comboYear === settings.minMonthsYear) {
+			for(var i = settings.minMonthsMonth + 1; i <= 12; i++){
+				months.filter('td[data-month='+ i +']').removeClass('ui-state-disabled');
+			}
+		}else if(comboYear > settings.minMonthsYear){
+			months.removeClass('ui-state-disabled');
+		}
+	}
 
     $.fn.monthpicker = function (method) {
         if (methods[method]) {
